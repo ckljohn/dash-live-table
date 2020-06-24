@@ -1,0 +1,35 @@
+version: '3.4'
+
+services:
+  frontend:
+    depends_on:
+    - elasticseearch
+    networks:
+    - dash
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      FLASK_DEBUG: 1
+      FLASK_APP: wsgi.py
+      FLASK_ENV: development
+      APP_CONFIG: '{"tcpdump": {"refresh_interval": 6000, "window": 1}}'
+      ES_ENDPOINT: elasticseearch
+      ES_PORT: "9200"
+      ES_VERIFY_CERTS: "False"
+    ports:
+    - '5000:5000'
+
+  elasticseearch:
+    container_name: elasticseearch
+    image: amazon/opendistro-for-elasticsearch
+    ports:
+      - 9200:9200
+      - 9600:9600
+    environment:
+      discovery.type: single-node
+    networks:
+    - dash
+
+networks:
+  dash:
