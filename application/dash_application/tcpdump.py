@@ -62,6 +62,43 @@ def add_dash(server):
     return dash_app.server
 
 
+def get_network_traffic(es, start_dt, end_dt):
+    """
+    Query ES to get network traffic. You may use native DSL.
+
+    :param es: Elasticsearch client
+    :type es: elasticsearch.client.Elasticsearch
+    :param start_dt:
+    :type start_dt: datetime.datetime
+    :param end_dt:
+    :type end_dt: datetime.datetime
+    :return: query response
+    """
+    base_query = """
+        SELECT 
+            source_ip.keyword
+            ,source_port.keyword
+            ,destination_ip.keyword
+            ,destination_port.keyword
+            ,protocol.keyword
+            ,count(*) count
+            ,sum(size) total_size
+        FROM tcpdump-*
+        WHERE ts between '{start_dt}' and '{end_dt}' 
+        GROUP BY 1, 2, 3, 4, 5
+        LIMIT 20
+        """
+    query = base_query.format(start_dt=start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
+                              end_dt=end_dt.strftime('%Y-%m-%dT%H:%M:%S'), )
+
+    # Get data from ES
+    return es.transport.perform_request(
+        method='POST',
+        url='/_opendistro/_sql',
+        body={'query': query}
+    )
+
+
 def init_callbacks(dash_app):
     # Create an ES connection
     es = connect_es(ES_ENDPOINT, port=ES_PORT, verify_certs=ES_VERIFY_CERTS)
@@ -76,35 +113,11 @@ def init_callbacks(dash_app):
         """
         nonlocal es
 
-        # Construct ES query (You may use native DSL)
-        # Only consider data in recent hour
         interval = timedelta(hours=APP_CONFIG.get('window', 1))
         end_dt = datetime.utcnow()
         start_dt = end_dt - interval
 
-        base_query = """
-            SELECT 
-                source_ip.keyword
-                ,source_port.keyword
-                ,destination_ip.keyword
-                ,destination_port.keyword
-                ,protocol.keyword
-                ,count(*) count
-                ,sum(size) total_size
-            FROM tcpdump-*
-            WHERE ts between '{start_dt}' and '{end_dt}' 
-            GROUP BY 1, 2, 3, 4, 5
-            LIMIT 20
-            """
-        query = base_query.format(start_dt=start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
-                                  end_dt=end_dt.strftime('%Y-%m-%dT%H:%M:%S'),)
-
-        # Get data from ES
-        response = es.transport.perform_request(
-            method='POST',
-            url='/_opendistro/_sql',
-            body={'query': query}
-        )
+        response = get_network_traffic(es, start_dt, end_dt)
 
         # Parse the response
         data = []
