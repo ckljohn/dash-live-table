@@ -113,9 +113,9 @@ def init_callbacks(dash_app):
         """
         nonlocal es
 
-        interval = timedelta(hours=APP_CONFIG.get('window', 1))
+        window = timedelta(hours=APP_CONFIG.get('window', 1))
         end_dt = datetime.utcnow()
-        start_dt = end_dt - interval
+        start_dt = end_dt - window
 
         response = get_network_traffic(es, start_dt, end_dt)
 
