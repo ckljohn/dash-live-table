@@ -22,7 +22,7 @@ services:
 
   elasticseearch:
     container_name: elasticseearch
-    image: amazon/opendistro-for-elasticsearch
+    image: amazon/opendistro-for-elasticsearch:1.8.0
     ports:
       - 9200:9200
       - 9600:9600
